@@ -25,6 +25,7 @@ public class WorkflowInstanceService : CRUDDataService<WorkflowInstance, IWorkfl
     private readonly IWorkflowDefinitionRepository _definitionRepository;
     private readonly IWorkflowInstanceDataRepository _instanceDataRepository;
     private readonly IWorkflowFunctionService _functionService;
+    private readonly IWorkflowTaskRepository _taskRepository;
 
     public WorkflowInstanceService(
         IWorkflowInstanceRepository repository,
@@ -38,7 +39,8 @@ public class WorkflowInstanceService : CRUDDataService<WorkflowInstance, IWorkfl
         IWorkflowCorrelationRepository correlationRepository,
         IWorkflowDefinitionRepository definitionRepository,
         IWorkflowInstanceDataRepository instanceDataRepository,
-        IWorkflowFunctionService functionService) : base(repository)
+        IWorkflowFunctionService functionService,
+        IWorkflowTaskRepository taskRepository) : base(repository)
     {
         _repository = repository;
         _stateDataRepository = stateDataRepository;
@@ -52,6 +54,7 @@ public class WorkflowInstanceService : CRUDDataService<WorkflowInstance, IWorkfl
         _definitionRepository = definitionRepository;
         _instanceDataRepository = instanceDataRepository;
         _functionService = functionService;
+        _taskRepository = taskRepository;
     }
 
     public async Task<WorkflowInstance?> GetByIdWithDetailsAsync(Guid id)
@@ -304,16 +307,42 @@ public class WorkflowInstanceService : CRUDDataService<WorkflowInstance, IWorkfl
             }
         }
 
-        // Get the current state to execute exit tasks
-        var fromState = await _stateRepository.GetByIdAsync(instance.CurrentStateId);
-        if (fromState != null && mergedData != null)
+        // Execute transition tasks
+        var transitionTasks = await _taskRepository.GetByTransitionIdAsync(transitionId);
+        foreach (var task in transitionTasks)
         {
-            foreach (var task in fromState.Tasks.Where(t => t.Trigger == TaskTrigger.OnExit || t.Trigger == TaskTrigger.Both))
+            var taskAssignment = task.TaskAssignments
+                .FirstOrDefault(ta => ta.TransitionId == transitionId && ta.Trigger == TaskTrigger.OnExecute);
+            
+            if (taskAssignment != null && mergedData != null)
             {
+                _logger.LogInformation(
+                    "Executing transition task {TaskName} for transition {TransitionName} with data: {Data}",
+                    task.Name,
+                    transition.Name,
+                    mergedData.RootElement.ToString()
+                );
                 await _taskProcessor.ExecuteTaskAsync(task, mergedData, instance);
             }
         }
 
+        // Get the current state to execute exit tasks
+        var fromState = await _stateRepository.GetByIdAsync(instance.CurrentStateId);
+        if (fromState != null && mergedData != null)
+        {
+            var exitTasks = await _taskRepository.GetByStateIdAsync(fromState.Id);
+            foreach (var task in exitTasks)
+            {
+                var taskAssignment = task.TaskAssignments
+                    .FirstOrDefault(ta => ta.StateId == fromState.Id && 
+                        (ta.Trigger == TaskTrigger.OnExit || ta.Trigger == TaskTrigger.Both));
+                
+                if (taskAssignment != null)
+                {
+                    await _taskProcessor.ExecuteTaskAsync(task, mergedData, instance);
+                }
+            }
+        }
 
         // Update instance state
         instance.CurrentStateId = transition.ToStateId;
@@ -321,8 +350,21 @@ public class WorkflowInstanceService : CRUDDataService<WorkflowInstance, IWorkfl
 
         // Get the target state
         var toState = await _stateRepository.GetByIdAsync(transition.ToStateId);
-        if (toState != null)
+        if (toState != null && mergedData != null)
         {
+            var entryTasks = await _taskRepository.GetByStateIdAsync(toState.Id);
+            foreach (var task in entryTasks)
+            {
+                var taskAssignment = task.TaskAssignments
+                    .FirstOrDefault(ta => ta.StateId == toState.Id && 
+                        (ta.Trigger == TaskTrigger.OnEntry || ta.Trigger == TaskTrigger.Both));
+                
+                if (taskAssignment != null)
+                {
+                    await _taskProcessor.ExecuteTaskAsync(task, mergedData, instance);
+                }
+            }
+
             if (toState.StateType == StateType.Finish)
             {
                 instance.CompletedAt = DateTime.UtcNow;
@@ -334,21 +376,6 @@ public class WorkflowInstanceService : CRUDDataService<WorkflowInstance, IWorkfl
             else if (toState.StateType == StateType.Subflow)
             {
                 await HandleSubflowStateAsync(instance, toState, mergedData);
-            }
-
-            // Execute entry tasks for the new state
-            if (mergedData != null && toState.Tasks != null)
-            {
-                foreach (var task in toState.Tasks.Where(t => t.Trigger == TaskTrigger.OnEntry || t.Trigger == TaskTrigger.Both))
-                {
-                    _logger.LogInformation(
-                        "Executing task {TaskName} for state {StateName} with data: {Data}",
-                        task.Name,
-                        toState.Name,
-                        mergedData.RootElement.ToString()
-                    );
-                    await _taskProcessor.ExecuteTaskAsync(task, mergedData, instance);
-                }
             }
         }
 

@@ -2,8 +2,9 @@ using System;
 using System.Text.Json;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
-
+using System.Collections.Generic;
 using Dapr.Framework.Domain.Common;
+
 namespace Workflow.Domain.Models.Tasks;
 
 [Table("WorkflowTasks")]
@@ -16,9 +17,6 @@ public abstract class WorkflowTask : BaseEntity
     public string? Description { get; set; }
 
     [Required]
-    public TaskTrigger Trigger { get; set; }
-
-    [Required]
     public TaskType Type { get; set; }
 
     [Column(TypeName = "jsonb")]
@@ -26,20 +24,13 @@ public abstract class WorkflowTask : BaseEntity
 
     public DateTime CreatedAt { get; set; }
 
-    // Task execution properties
-    public TaskStatus Status { get; set; } = TaskStatus.Pending;
-    public DateTime? CompletedAt { get; set; }
-    public string? Result { get; set; }
-
-    public Guid? WorkflowStateId { get; set; }
-
-    [ForeignKey(nameof(WorkflowStateId))]
-    public virtual WorkflowState? WorkflowState { get; set; }
-
     public virtual void Configure(JsonElement config)
     {
         Config = config.ToString();
     }
+
+    // Add collection navigation property for task assignments
+    public virtual ICollection<WorkflowTaskAssignment> TaskAssignments { get; set; } = new List<WorkflowTaskAssignment>();
 }
 
 public enum TaskType
@@ -51,15 +42,14 @@ public enum TaskType
     Human,
     Http
 }
-
 public enum TaskTrigger
 {
     OnEntry,
     OnExit,
     Both,
-    Manual
+    Manual,
+    OnExecute
 }
-
 public enum TaskStatus
 {
     Pending,

@@ -4,6 +4,7 @@ using System.ComponentModel.DataAnnotations.Schema;
 using System.Text.Json;
 using Dapr.Framework.Domain.Common;
 using Workflow.Domain.Models.Views;
+using Workflow.Domain.Models.Tasks;
 
 namespace Workflow.Domain.Models;
 
@@ -31,6 +32,9 @@ public class WorkflowTransition : BaseEntity
     [Column(TypeName = "jsonb")]
     public string _triggerConfig = "{}";
 
+    public Guid? TaskId { get; set; }
+    public WorkflowTask? Task { get; set; }
+
     // Navigation properties
     [ForeignKey(nameof(WorkflowDefinitionId))]
     public virtual WorkflowDefinition WorkflowDefinition { get; set; } = null!;
@@ -43,6 +47,7 @@ public class WorkflowTransition : BaseEntity
 
     public virtual ICollection<WorkflowView> Views { get; set; } = new List<WorkflowView>();
 
+    public virtual ICollection<WorkflowTaskAssignment> TaskAssignments { get; set; } = new List<WorkflowTaskAssignment>();
 
     [NotMapped]
     public JsonDocument TriggerConfig

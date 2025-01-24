@@ -26,18 +26,51 @@ public class WorkflowDbContext : DbContext
     {
         base.OnModelCreating(modelBuilder);
 
+        // Configure task inheritance
+        modelBuilder.Entity<WorkflowTask>()
+            .HasDiscriminator<string>("TaskType")
+            .HasValue<DaprHttpEndpointTask>("DaprHttpEndpoint")
+            .HasValue<DaprBindingTask>("DaprBinding")
+            .HasValue<DaprServiceTask>("DaprService")
+            .HasValue<HumanTask>("Human")
+            .HasValue<HttpTask>("Http");
+
+        // Configure task assignments
+        modelBuilder.Entity<WorkflowTaskAssignment>()
+            .HasOne(ta => ta.Task)
+            .WithMany(t => t.TaskAssignments)
+            .HasForeignKey(ta => ta.TaskId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<WorkflowTaskAssignment>()
+            .HasOne(ta => ta.State)
+            .WithMany()
+            .HasForeignKey(ta => ta.StateId)
+            .OnDelete(DeleteBehavior.SetNull);
+
+        modelBuilder.Entity<WorkflowTaskAssignment>()
+            .HasOne(ta => ta.Transition)
+            .WithMany()
+            .HasForeignKey(ta => ta.TransitionId)
+            .OnDelete(DeleteBehavior.SetNull);
+
+        modelBuilder.Entity<WorkflowTaskAssignment>()
+            .HasOne(ta => ta.Function)
+            .WithMany()
+            .HasForeignKey(ta => ta.FunctionId)
+            .OnDelete(DeleteBehavior.SetNull);
+
+        // Configure indexes
+        modelBuilder.Entity<WorkflowTaskAssignment>()
+            .HasIndex(ta => ta.Status);
+
+        modelBuilder.Entity<WorkflowTaskAssignment>()
+            .HasIndex(ta => ta.CompletedAt);
+
         // Configure WorkflowTask inheritance using Table-Per-Type (TPT)
         modelBuilder.Entity<WorkflowTask>(entity =>
         {
             entity.ToTable("WorkflowTasks");  // Base table for common properties
-
-            // Configure task execution properties
-            entity.Property(e => e.Status)
-                .HasConversion<string>()
-                .HasMaxLength(20);
-            
-            entity.Property(e => e.Result)
-                .HasColumnType("jsonb");
 
             entity.Property(e => e.Name)
                 .HasMaxLength(100)
@@ -115,13 +148,6 @@ public class WorkflowDbContext : DbContext
             .WithMany()
             .HasForeignKey(c => c.ParentStateId)
             .OnDelete(DeleteBehavior.NoAction);
-
-        // Configure WorkflowFunction relationship with WorkflowTask
-        modelBuilder.Entity<WorkflowFunction>()
-            .HasOne(f => f.Task)
-            .WithMany()
-            .HasForeignKey(f => f.TaskId)
-            .OnDelete(DeleteBehavior.Cascade);
 
         // Add any specific model configurations here
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(WorkflowDbContext).Assembly);

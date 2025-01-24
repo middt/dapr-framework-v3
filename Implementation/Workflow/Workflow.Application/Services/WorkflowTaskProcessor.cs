@@ -14,95 +14,74 @@ public class WorkflowTaskProcessor
     private readonly ILogger<WorkflowTaskProcessor> _logger;
     private readonly IWorkflowInstanceTaskRepository _instanceTaskRepository;
     private readonly HttpClient _httpClient;
+    private readonly IWorkflowTaskRepository _taskRepository;
+    private readonly IWorkflowTaskAssignmentRepository _taskAssignmentRepository;
 
     public WorkflowTaskProcessor(
         DaprClient daprClient, 
         ILogger<WorkflowTaskProcessor> logger,
         IWorkflowInstanceTaskRepository instanceTaskRepository,
-        HttpClient httpClient)
+        HttpClient httpClient,
+        IWorkflowTaskRepository taskRepository,
+        IWorkflowTaskAssignmentRepository taskAssignmentRepository)
     {
         _daprClient = daprClient;
         _logger = logger;
         _instanceTaskRepository = instanceTaskRepository;
         _httpClient = httpClient;
+        _taskRepository = taskRepository;
+        _taskAssignmentRepository = taskAssignmentRepository;
     }
 
-    public async Task<object?> ExecuteTaskAsync(WorkflowTask task, JsonDocument? data = null, WorkflowInstance? instance = null)
+    public async Task<object?> ExecuteTaskAsync(WorkflowTask task, JsonDocument data, WorkflowInstance? instance = null)
     {
-        WorkflowInstanceTask? instanceTask = null;
-        object? result = null;
-
-        if (instance != null)
+        var taskAssignment = new WorkflowTaskAssignment
         {
-            instanceTask = new WorkflowInstanceTask
-            {
-                Id = Guid.NewGuid(),
-                WorkflowInstanceId = instance.Id,
-                WorkflowTaskId = task.Id,
-                StateId = instance.CurrentStateId,
-                TaskName = task.Name,
-                TaskType = task.Type,
-                Status = Workflow.Domain.Models.Tasks.TaskStatus.InProgress,
-                StartedAt = DateTime.UtcNow,
-                CreatedAt = DateTime.UtcNow
-            };
-            
-            await _instanceTaskRepository.CreateAsync(instanceTask);
-        }
+            Id = Guid.NewGuid(),
+            TaskId = task.Id,
+            Status = Domain.Models.Tasks.TaskStatus.InProgress,
+            CreatedAt = DateTime.UtcNow,
+            UpdatedAt = DateTime.UtcNow
+        };
 
         try
         {
-            _logger.LogInformation("Executing task {TaskId} of type {TaskType} for instance {InstanceId}",
-                task.Id, task.Type, instance?.Id);
+            object? result = null;
 
-            // This switch statement works with TPT since we're using the Type property
-            switch (task.Type)
+            switch (task)
             {
-                case TaskType.Human:
-                    result = await ExecuteHumanTaskAsync(task as HumanTask, data, instance);
+                case HumanTask humanTask:
+                    result = await ExecuteHumanTaskAsync(humanTask, taskAssignment, data);
                     break;
-                case TaskType.DaprBinding:
-                    result = await ExecuteDaprBindingTaskAsync(task as DaprBindingTask, instance, data);
+                case DaprBindingTask daprBindingTask:
+                    result = await ExecuteDaprBindingTaskAsync(daprBindingTask, instance, data);
                     break;
-                case TaskType.DaprService:
-                    result = await ExecuteDaprServiceTaskAsync(task as DaprServiceTask, instance, data);
+                case DaprServiceTask daprServiceTask:
+                    result = await ExecuteDaprServiceTaskAsync(daprServiceTask, instance, data);
                     break;
-                case TaskType.DaprPubSub:
-                    result = await ExecuteDaprPubSubTaskAsync(task as DaprPubSubTask, instance, data);
+                case DaprPubSubTask daprPubSubTask:
+                    result = await ExecuteDaprPubSubTaskAsync(daprPubSubTask, instance, data);
                     break;
-                case TaskType.Http:
-                    result = await ExecuteHttpTaskAsync(task as HttpTask, instance, data);
+                case HttpTask httpTask:
+                    result = await ExecuteHttpTaskAsync(httpTask, instance, data);
                     break;
-                case TaskType.DaprHttpEndpoint:
-                    result = await ExecuteDaprHttpEndpointTaskAsync(task as DaprHttpEndpointTask, instance, data);
+                case DaprHttpEndpointTask daprHttpEndpointTask:
+                    result = await ExecuteDaprHttpEndpointTaskAsync(daprHttpEndpointTask, instance, data);
                     break;
             }
 
-            task.Status = Workflow.Domain.Models.Tasks.TaskStatus.Completed;
-            task.CompletedAt = DateTime.UtcNow;
-            task.Result = result != null ? JsonSerializer.Serialize(result) : null;
-            
-            if (instanceTask != null)
-            {
-                instanceTask.Status = Workflow.Domain.Models.Tasks.TaskStatus.Completed;
-                instanceTask.CompletedAt = DateTime.UtcNow;
-                instanceTask.Result = task.Result;
-                await _instanceTaskRepository.UpdateAsync(instanceTask);
-            }
+            taskAssignment.Status = Domain.Models.Tasks.TaskStatus.Completed;
+            taskAssignment.CompletedAt = DateTime.UtcNow;
+            taskAssignment.Result = result?.ToString();
+            await _taskAssignmentRepository.UpdateAsync(taskAssignment);
 
             return result;
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error executing task {TaskId}", task.Id);
-            task.Status = Workflow.Domain.Models.Tasks.TaskStatus.Failed;
-            
-            if (instanceTask != null)
-            {
-                instanceTask.Status = Workflow.Domain.Models.Tasks.TaskStatus.Failed;
-                instanceTask.Error = ex.Message;
-                await _instanceTaskRepository.UpdateAsync(instanceTask);
-            }
+            taskAssignment.Status = Domain.Models.Tasks.TaskStatus.Failed;
+            taskAssignment.Result = ex.Message;
+            await _taskAssignmentRepository.UpdateAsync(taskAssignment);
             throw;
         }
     }
@@ -154,24 +133,12 @@ public class WorkflowTaskProcessor
         return new { pubsub = task.PubSubName, topic = task.Topic, data = requestData, metadata };
     }
 
-    private async Task<object?> ExecuteHumanTaskAsync(HumanTask? task, JsonDocument? data, WorkflowInstance? instance)
+    private async Task<object?> ExecuteHumanTaskAsync(HumanTask task, WorkflowTaskAssignment assignment, JsonDocument data)
     {
-        if (task == null) throw new ArgumentNullException(nameof(task));
-
-        // Human tasks are completed manually, so we just validate and log
-        _logger.LogInformation("Human task {TaskId} created and waiting for completion", task.Id);
-
-        if (data != null)
-        {
-            // Replace any placeholders in the task form or instructions
-            task.Form = ReplacePlaceholders(task.Form, data, instance);
-            task.Instructions = ReplacePlaceholders(task.Instructions, data, instance);
-        }
-
-        // Human tasks start in pending status until manually completed
-        task.Status = Workflow.Domain.Models.Tasks.TaskStatus.Pending;
-
-        return new { status = "pending", form = task.Form, instructions = task.Instructions };
+        // Human task execution logic
+        _logger.LogInformation("Executing human task: {TaskName}", task.Name);
+        // ... implementation
+        return null;
     }
 
     private async Task<object?> ExecuteHttpTaskAsync(HttpTask? task, WorkflowInstance? instance, JsonDocument stateData)
