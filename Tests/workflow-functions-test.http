@@ -1,0 +1,32 @@
+@host = http://localhost:5007
+@api = {{host}}/api/v1
+
+### Test External API Function (Direct HTTP)
+POST {{api}}/workflow-functions/Test External API Function/execute
+Content-Type: application/json
+
+{
+    "message": "Custom message from test",
+    "timestamp": "{{$datetime iso8601}}"
+}
+
+### Test External Service Function (Dapr Binding)
+POST {{api}}/workflow-functions/External Service Function/execute
+Content-Type: application/json
+
+{
+    "message": "Custom message from binding test",
+    "customTimestamp": "{{$datetime iso8601}}"
+}
+
+### Test External Service via HTTPEndpoint Function
+POST {{api}}/workflow-functions/External Service via HTTPEndpoint/execute
+Content-Type: application/json
+
+{
+    "message": "Custom message from HTTPEndpoint test",
+    "customTimestamp": "{{$datetime iso8601}}"
+}
+
+### List all workflow functions
+GET {{api}}/workflow-functions

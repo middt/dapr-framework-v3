@@ -1,0 +1,42 @@
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31903.59
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Workflow.Api", "Implementation\Workflow\Workflow.Api\Workflow.Api.csproj", "{D1B6C8A1-1234-4567-8901-234567890ABC}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Workflow.Application", "Implementation\Workflow\Workflow.Application\Workflow.Application.csproj", "{D2B6C8A1-1234-4567-8901-234567890ABC}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Workflow.Domain", "Implementation\Workflow\Workflow.Domain\Workflow.Domain.csproj", "{D3B6C8A1-1234-4567-8901-234567890ABC}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Workflow.Infrastructure", "Implementation\Workflow\Workflow.Infrastructure\Workflow.Infrastructure.csproj", "{D4B6C8A1-1234-4567-8901-234567890ABC}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{D1B6C8A1-1234-4567-8901-234567890ABC}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{D1B6C8A1-1234-4567-8901-234567890ABC}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{D1B6C8A1-1234-4567-8901-234567890ABC}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{D1B6C8A1-1234-4567-8901-234567890ABC}.Release|Any CPU.Build.0 = Release|Any CPU
+		{D2B6C8A1-1234-4567-8901-234567890ABC}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{D2B6C8A1-1234-4567-8901-234567890ABC}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{D2B6C8A1-1234-4567-8901-234567890ABC}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{D2B6C8A1-1234-4567-8901-234567890ABC}.Release|Any CPU.Build.0 = Release|Any CPU
+		{D3B6C8A1-1234-4567-8901-234567890ABC}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{D3B6C8A1-1234-4567-8901-234567890ABC}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{D3B6C8A1-1234-4567-8901-234567890ABC}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{D3B6C8A1-1234-4567-8901-234567890ABC}.Release|Any CPU.Build.0 = Release|Any CPU
+		{D4B6C8A1-1234-4567-8901-234567890ABC}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{D4B6C8A1-1234-4567-8901-234567890ABC}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{D4B6C8A1-1234-4567-8901-234567890ABC}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{D4B6C8A1-1234-4567-8901-234567890ABC}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {E5B6C8A1-1234-4567-8901-234567890ABC}
+	EndGlobalSection
+EndGlobal 

@@ -1,0 +1,12 @@
+apiVersion: dapr.io/v1alpha1
+kind: HTTPEndpoint
+metadata:
+  name: httpbin
+spec:
+  baseUrl: https://httpbin.org # Required. Use "http://" or "https://" prefix.
+  headers: # Optional
+  - name: "x-custom-header"
+    value: "value"
+
+  type: service.http
+ 

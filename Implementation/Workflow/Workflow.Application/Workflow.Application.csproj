@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Workflow.Domain\Workflow.Domain.csproj" />
+    <ProjectReference Include="..\Workflow.Infrastructure\Workflow.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\..\Framework\Dapr.Framework.Application\Dapr.Framework.Application.csproj" />
+    <ProjectReference Include="..\..\..\Framework\Dapr.Framework.Domain\Dapr.Framework.Domain.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Dapr.Client" Version="1.14.0" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="9.0.1" />
+    <PackageReference Include="Polly" Version="8.5.1" />
+    <PackageReference Include="Microsoft.Extensions.Hosting" Version="9.0.1" />
+  </ItemGroup>
+
+</Project> 

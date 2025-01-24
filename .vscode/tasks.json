@@ -1,0 +1,63 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "build-workflow",
+			"command": "dotnet",
+			"type": "process",
+			"args": [
+				"build",
+				"${workspaceFolder}/Implementation/Workflow/Workflow.Api/Workflow.Api.csproj",
+				"/property:GenerateFullPaths=true",
+				"/consoleloggerparameters:NoSummary"
+			],
+			"problemMatcher": "$msCompile",
+			"group": {
+				"kind": "build",
+				"isDefault": true
+			}
+		},
+		{
+			"label": "daprd-debug",
+			"command": "/Users/U05973/.dapr/bin/daprd",
+			"type": "process",
+			"args": [
+				"-app-id",
+				"workflow-api",
+				"-app-port",
+				"5007",
+				"-dapr-http-port",
+				"3500",
+				"-dapr-grpc-port",
+				"50001",
+				"-components-path",
+				"${workspaceFolder}/AppHost/components",
+				"-config",
+				"${workspaceFolder}/AppHost/config.yaml"
+			],
+			"isBackground": true,
+			"problemMatcher": {
+				"pattern": [
+					{
+						"regexp": ".",
+						"file": 1,
+						"location": 2,
+						"message": 3
+					}
+				],
+				"background": {
+					"activeOnStart": true,
+					"beginsPattern": ".",
+					"endsPattern": "."
+				}
+			},
+			"dependsOn": "build-workflow"
+		},
+		{
+			"label": "daprd-debug-stop",
+			"type": "shell",
+			"command": "pkill daprd",
+			"problemMatcher": []
+		}
+	]
+}

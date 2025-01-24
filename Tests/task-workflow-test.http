@@ -1,0 +1,79 @@
+@baseUrl = http://localhost:5007
+@clientVersion = 1.*
+
+### Start Document Processing Workflow
+# @name createInstance
+POST {{baseUrl}}/api/v1.0/workflow-instances/start/Document Processing
+X-Client-Version: {{clientVersion}}
+Content-Type: application/json
+
+{
+    "title": "Important Document",
+    "content": "This is an important document that needs processing",
+    "author": "john.doe@example.com"
+}
+
+### Store instance ID from createInstance response
+@instanceId = {{createInstance.response.body.id}}
+
+### Get Instance Details (Should be in Draft state)
+# @name getDraftDetails
+GET {{baseUrl}}/api/v1.0/workflow-instances/{{instanceId}}/with-details
+
+### Store Submit for Review transition ID
+@submitTransitionId = {{getDraftDetails.response.body.currentState.availableTransitions[?(@.name=='Submit for Review')].id}}
+
+### Submit Document for Review (Draft -> Review)
+# @name submitForReview
+POST {{baseUrl}}/api/v1.0/workflow-instances/{{instanceId}}/transitions/{{submitTransitionId}}
+Content-Type: application/json
+
+{
+    "title": "Important Document",
+    "content": "This is an important document that needs processing",
+    "author": "john.doe@example.com",
+    "submittedBy": "John Doe",
+    "submittedAt": "2024-03-20T10:00:00Z"
+}
+
+### Get Instance Details (Should be in Review state)
+# @name getReviewDetails
+GET {{baseUrl}}/api/v1.0/workflow-instances/{{instanceId}}/with-details
+
+### Auto Approve (Review -> Approved)
+# @name autoApprove
+POST {{baseUrl}}/api/v1.0/workflow-instances/{{instanceId}}/transitions/{{getReviewDetails.response.body.currentState.availableTransitions[?(@.name=='Auto Approve')].id}}
+Content-Type: application/json
+
+{
+    "status": "approved",
+    "comments": "Document looks good, approved!"
+}
+
+### Get Instance Details (Should be in Approved state)
+# @name getApprovedDetails
+GET {{baseUrl}}/api/v1.0/workflow-instances/{{instanceId}}/with-details
+
+### Wait for Processing (Scheduled transition after 10 seconds)
+@wait = 11000
+
+### Get Instance Details (Should be in Processing state)
+# @name getProcessingDetails
+GET {{baseUrl}}/api/v1.0/workflow-instances/{{instanceId}}/with-details
+
+### Wait for Publishing (Scheduled transition after 30 seconds)
+@wait = 31000
+
+### Get Instance Details (Should be in Published state, email should be sent)
+# @name getPublishedDetails
+GET {{baseUrl}}/api/v1.0/workflow-instances/{{instanceId}}/with-details
+
+### Wait for Archiving (Scheduled transition after 5 minutes)
+@wait = 301000
+
+### Get Instance Details (Should be in Archived state)
+# @name getArchivedDetails
+GET {{baseUrl}}/api/v1.0/workflow-instances/{{instanceId}}/with-details
+
+### Get State History
+GET {{baseUrl}}/api/v1.0/workflow-instances/{{instanceId}}/state-history

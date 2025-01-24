@@ -1,0 +1,49 @@
+version: "3.8"
+
+services:
+  maildev:
+    image: maildev/maildev:2.1.0
+    ports:
+      - "1025:1025" # SMTP port
+      - "1080:1080" # Web interface port
+    environment:
+      - MAILDEV_SMTP_PORT=1025
+      - MAILDEV_WEB_PORT=1080
+      - MAILDEV_INCOMING_USER=
+      - MAILDEV_INCOMING_PASS=
+      - MAILDEV_OUTGOING_USER=
+      - MAILDEV_OUTGOING_PASS=
+    networks:
+      - workflow-net
+
+  redis:
+    image: redis:7.2-alpine
+    ports:
+      - "6379:6379"
+    networks:
+      - workflow-net
+
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: workflowdb
+      POSTGRES_USER: workflow
+      POSTGRES_PASSWORD: workflow123
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - workflow-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U workflow -d workflowdb"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+networks:
+  workflow-net:
+    driver: bridge
+
+volumes:
+  postgres_data:

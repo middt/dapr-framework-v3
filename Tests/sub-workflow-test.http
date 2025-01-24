@@ -1,0 +1,112 @@
+@baseUrl = http://localhost:5007
+@clientVersion = 1.*
+
+### Start Approval Process
+# @name createInstance
+POST {{baseUrl}}/api/v1.0/workflow-instances/start/Document Approval
+X-Client-Version: {{clientVersion}}
+Content-Type: application/json
+
+{
+    "title": "Important Document",
+    "description": "This document needs review and approval",
+    "author": "john.doe@example.com"
+}
+
+### Store instance ID from createInstance response
+@instanceId = {{createInstance.response.body.id}}
+
+### Get Instance Details
+# @name getInstanceDetails
+GET {{baseUrl}}/api/v1.0/workflow-instances/{{instanceId}}/with-details
+
+### Store Submit transition ID
+@submitTransitionId = {{getInstanceDetails.response.body.currentState.availableTransitions[?(@.name=='Submit for Review')].id}}
+
+### Submit for Review (Draft -> In Review)
+# @name submitForReview
+POST {{baseUrl}}/api/v1.0/workflow-instances/{{instanceId}}/transitions/{{submitTransitionId}}
+Content-Type: application/json
+
+{
+    "title": "Important Document",
+    "description": "This document needs review and approval",
+    "author": "john.doe@example.com",
+    "submittedBy": "john.doe@example.com",
+    "submittedAt": "2024-03-20T10:00:00Z"
+}
+
+### Get Parent Instance Details (to get child correlations)
+# @name getParentDetails
+GET {{baseUrl}}/api/v1.0/workflow-instances/{{instanceId}}/with-details
+
+### Store subflow instance ID from parent's child correlations
+@subflowInstanceId = {{getParentDetails.response.body.children[0].instanceId}}
+
+### Get Subflow Details
+# @name getSubflowDetails
+GET {{baseUrl}}/api/v1.0/workflow-instances/{{subflowInstanceId}}/with-details
+
+### Store review transition IDs
+@approveTransitionId = {{getSubflowDetails.response.body.currentState.availableTransitions[?(@.name=='Approve')].id}}
+@rejectTransitionId = {{getSubflowDetails.response.body.currentState.availableTransitions[?(@.name=='Reject')].id}}
+@needsWorkTransitionId = {{getSubflowDetails.response.body.currentState.availableTransitions[?(@.name=='Request Changes')].id}}
+
+### Complete Review - Option 1: Approve
+# @name approveReview
+POST {{baseUrl}}/api/v1.0/workflow-instances/{{subflowInstanceId}}/transitions/{{approveTransitionId}}
+Content-Type: application/json
+
+{
+    "decision": "approve",
+    "comments": "Looks good, approved!"
+}
+
+### Check Parent Status (Should be Approved)
+GET {{baseUrl}}/api/v1.0/workflow-instances/{{instanceId}}/with-details
+
+### Complete Review - Option 2: Reject
+# @name rejectReview
+POST {{baseUrl}}/api/v1.0/workflow-instances/{{subflowInstanceId}}/transitions/{{rejectTransitionId}}
+Content-Type: application/json
+
+{
+    "decision": "reject",
+    "comments": "Cannot approve in current form"
+}
+
+### Check Parent Status (Should be Rejected)
+GET {{baseUrl}}/api/v1.0/workflow-instances/{{instanceId}}/with-details
+
+### Complete Review - Option 3: Request Changes
+# @name requestChanges
+POST {{baseUrl}}/api/v1.0/workflow-instances/{{subflowInstanceId}}/transitions/{{needsWorkTransitionId}}
+Content-Type: application/json
+
+{
+    "decision": "needsWork",
+    "comments": "Please make the following changes..."
+}
+
+### Get Main Workflow Status
+# @name getMainStatus
+GET {{baseUrl}}/api/v1.0/workflow-instances/{{instanceId}}/with-details
+
+### Store resubmit transition ID
+@resubmitTransitionId = {{getMainStatus.response.body.currentState.availableTransitions[?(@.name=='Resubmit')].id}}
+
+### Resubmit After Changes (Revision Needed -> In Review)
+POST {{baseUrl}}/api/v1.0/workflow-instances/{{instanceId}}/transitions/{{resubmitTransitionId}}
+Content-Type: application/json
+
+{
+    "revisionNotes": "Changes made as requested",
+    "resubmittedBy": "John Doe",
+    "resubmittedAt": "2024-03-20T11:00:00Z"
+}
+
+### Get Main Instance History
+GET {{baseUrl}}/api/v1.0/workflow-instances/{{instanceId}}/state-history
+
+### Get Subflow Instance History
+GET {{baseUrl}}/api/v1.0/workflow-instances/{{subflowInstanceId}}/state-history 
