@@ -9,7 +9,7 @@ namespace Workflow.Infrastructure.Repositories;
 
 public class WorkflowInstanceTaskRepository : EfCRUDRepository<WorkflowInstanceTask>, IWorkflowInstanceTaskRepository
 {
-    private new readonly WorkflowDbContext _context;
+    private readonly WorkflowDbContext _context;
 
     public WorkflowInstanceTaskRepository(WorkflowDbContext context, ITransactionService transactionService)
         : base(context, transactionService)
@@ -19,25 +19,29 @@ public class WorkflowInstanceTaskRepository : EfCRUDRepository<WorkflowInstanceT
 
     public async Task<IEnumerable<WorkflowInstanceTask>> GetByInstanceIdAsync(Guid instanceId)
     {
-        return await _context.WorkflowInstanceTasks
+        return await _context.Set<WorkflowInstanceTask>()
             .Where(t => t.WorkflowInstanceId == instanceId)
-            .OrderByDescending(t => t.StartedAt)
             .ToListAsync();
     }
 
     public async Task<IEnumerable<WorkflowInstanceTask>> GetByStateIdAsync(Guid stateId)
     {
-        return await _context.WorkflowInstanceTasks
+        return await _context.Set<WorkflowInstanceTask>()
             .Where(t => t.StateId == stateId)
-            .OrderByDescending(t => t.StartedAt)
             .ToListAsync();
     }
 
     public async Task<IEnumerable<WorkflowInstanceTask>> GetByTaskIdAsync(Guid taskId)
     {
-        return await _context.WorkflowInstanceTasks
+        return await _context.Set<WorkflowInstanceTask>()
             .Where(t => t.WorkflowTaskId == taskId)
-            .OrderByDescending(t => t.StartedAt)
             .ToListAsync();
+    }
+
+    public async Task<WorkflowInstanceTask> CreateAsync(WorkflowInstanceTask task)
+    {
+        await _context.Set<WorkflowInstanceTask>().AddAsync(task);
+        await _context.SaveChangesAsync();
+        return task;
     }
 } 

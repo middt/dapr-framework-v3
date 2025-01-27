@@ -60,12 +60,15 @@ public class WorkflowDbContext : DbContext
             .HasForeignKey(ta => ta.FunctionId)
             .OnDelete(DeleteBehavior.SetNull);
 
-        // Configure indexes
-        modelBuilder.Entity<WorkflowTaskAssignment>()
-            .HasIndex(ta => ta.Status);
+        // Configure indexes for WorkflowInstanceTask
+        modelBuilder.Entity<WorkflowInstanceTask>()
+            .HasIndex(t => t.Status);
 
-        modelBuilder.Entity<WorkflowTaskAssignment>()
-            .HasIndex(ta => ta.CompletedAt);
+        modelBuilder.Entity<WorkflowInstanceTask>()
+            .HasIndex(t => t.CompletedAt);
+
+        modelBuilder.Entity<WorkflowInstanceTask>()
+            .HasIndex(t => t.WorkflowInstanceId);
 
         // Configure WorkflowTask inheritance using Table-Per-Type (TPT)
         modelBuilder.Entity<WorkflowTask>(entity =>

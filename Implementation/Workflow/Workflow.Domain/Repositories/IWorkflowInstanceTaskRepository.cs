@@ -8,4 +8,5 @@ public interface IWorkflowInstanceTaskRepository : ICRUDRepository<WorkflowInsta
     Task<IEnumerable<WorkflowInstanceTask>> GetByInstanceIdAsync(Guid instanceId);
     Task<IEnumerable<WorkflowInstanceTask>> GetByStateIdAsync(Guid stateId);
     Task<IEnumerable<WorkflowInstanceTask>> GetByTaskIdAsync(Guid taskId);
+    Task<WorkflowInstanceTask> CreateAsync(WorkflowInstanceTask task);
 } 

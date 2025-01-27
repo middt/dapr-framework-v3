@@ -33,83 +33,90 @@ public class WorkflowTaskProcessor
         _taskAssignmentRepository = taskAssignmentRepository;
     }
 
-    public async Task<object?> ExecuteTaskAsync(WorkflowTask task, JsonDocument data, WorkflowInstance? instance = null)
+    public async Task<object?> ExecuteTaskAsync(WorkflowTask task, JsonDocument data, WorkflowTaskAssignment assignment)
     {
-        var taskAssignment = new WorkflowTaskAssignment
+        var instanceTask = new WorkflowInstanceTask
         {
             Id = Guid.NewGuid(),
-            TaskId = task.Id,
+            WorkflowInstanceId = assignment.WorkflowInstanceId ?? Guid.Empty,
+            WorkflowTaskId = task.Id,
+            StateId = assignment.StateId ?? Guid.Empty,
+            TaskName = task.Name,
+            TaskType = task.Type,
             Status = Domain.Models.Tasks.TaskStatus.InProgress,
-            CreatedAt = DateTime.UtcNow,
-            UpdatedAt = DateTime.UtcNow
+            StartedAt = DateTime.UtcNow,
+            CreatedAt = DateTime.UtcNow
         };
 
         try
         {
-            object? result = null;
+            var config = !string.IsNullOrEmpty(assignment.Config) 
+                ? JsonSerializer.Deserialize<JsonDocument>(assignment.Config)
+                : JsonDocument.Parse("{}");
 
+            object? result = null;
             switch (task)
             {
                 case HumanTask humanTask:
-                    result = await ExecuteHumanTaskAsync(humanTask, taskAssignment, data);
+                    result = await ExecuteHumanTaskAsync(humanTask, assignment, data);
                     break;
                 case DaprBindingTask daprBindingTask:
-                    result = await ExecuteDaprBindingTaskAsync(daprBindingTask, instance, data);
+                    result = await ExecuteDaprBindingTaskAsync(daprBindingTask, data, config);
                     break;
                 case DaprServiceTask daprServiceTask:
-                    result = await ExecuteDaprServiceTaskAsync(daprServiceTask, instance, data);
+                    result = await ExecuteDaprServiceTaskAsync(daprServiceTask, data, config);
                     break;
                 case DaprPubSubTask daprPubSubTask:
-                    result = await ExecuteDaprPubSubTaskAsync(daprPubSubTask, instance, data);
+                    result = await ExecuteDaprPubSubTaskAsync(daprPubSubTask, data, config);
                     break;
                 case HttpTask httpTask:
-                    result = await ExecuteHttpTaskAsync(httpTask, instance, data);
+                    result = await ExecuteHttpTaskAsync(httpTask, data, config);
                     break;
                 case DaprHttpEndpointTask daprHttpEndpointTask:
-                    result = await ExecuteDaprHttpEndpointTaskAsync(daprHttpEndpointTask, instance, data);
+                    result = await ExecuteDaprHttpEndpointTaskAsync(daprHttpEndpointTask, data, config);
                     break;
             }
 
-            taskAssignment.Status = Domain.Models.Tasks.TaskStatus.Completed;
-            taskAssignment.CompletedAt = DateTime.UtcNow;
-            taskAssignment.Result = result?.ToString();
-            await _taskAssignmentRepository.UpdateAsync(taskAssignment);
+            instanceTask.Status = Domain.Models.Tasks.TaskStatus.Completed;
+            instanceTask.CompletedAt = DateTime.UtcNow;
+            instanceTask.Result = result?.ToString();
+            await _instanceTaskRepository.CreateAsync(instanceTask);
 
             return result;
         }
         catch (Exception ex)
         {
-            taskAssignment.Status = Domain.Models.Tasks.TaskStatus.Failed;
-            taskAssignment.Result = ex.Message;
-            await _taskAssignmentRepository.UpdateAsync(taskAssignment);
+            instanceTask.Status = Domain.Models.Tasks.TaskStatus.Failed;
+            instanceTask.Error = ex.Message;
+            await _instanceTaskRepository.CreateAsync(instanceTask);
             throw;
         }
     }
 
-    private async Task<object?> ExecuteDaprBindingTaskAsync(DaprBindingTask? task, WorkflowInstance? instance, JsonDocument stateData)
+    private async Task<object?> ExecuteDaprBindingTaskAsync(DaprBindingTask task, JsonDocument stateData, JsonDocument config)
     {
         if (task == null) throw new ArgumentNullException(nameof(task));
 
         var metadata = JsonSerializer.Deserialize<Dictionary<string, string>>(task.Metadata);
-        var config = JsonSerializer.Deserialize<JsonDocument>(task.Config);
         var data = config.RootElement.GetProperty("data");
 
         // Replace placeholders in metadata and data with actual values from state data
-        metadata = ReplacePlaceholders(metadata, stateData, instance);
+        metadata = ReplacePlaceholders(metadata, stateData);
         var jsonData = data.GetRawText();
-        var replacedData = ReplacePlaceholders(jsonData, stateData, instance);
+        var replacedData = ReplacePlaceholders(jsonData, stateData);
         var requestData = JsonSerializer.Deserialize<object>(replacedData);
 
         await _daprClient.InvokeBindingAsync(task.BindingName, task.Operation, requestData, metadata);
-        return new { operation = task.Operation, binding = task.BindingName, metadata, data = requestData };    }
+        return new { operation = task.Operation, binding = task.BindingName, metadata, data = requestData };
+    }
 
-    private async Task<object?> ExecuteDaprServiceTaskAsync(DaprServiceTask? task, WorkflowInstance? instance, JsonDocument stateData)
+    private async Task<object?> ExecuteDaprServiceTaskAsync(DaprServiceTask task, JsonDocument stateData, JsonDocument config)
     {
         if (task == null) throw new ArgumentNullException(nameof(task));
 
         var dataJson = JsonSerializer.Deserialize<JsonDocument>(task.Data);
         var jsonData = dataJson.RootElement.GetRawText();
-        var replacedData = ReplacePlaceholders(jsonData, stateData, instance);
+        var replacedData = ReplacePlaceholders(jsonData, stateData);
         var requestData = JsonSerializer.Deserialize<object>(replacedData);
 
         var httpMethod = new HttpMethod(task.HttpVerb);
@@ -117,7 +124,7 @@ public class WorkflowTaskProcessor
         return response;
     }
 
-    private async Task<object?> ExecuteDaprPubSubTaskAsync(DaprPubSubTask? task, WorkflowInstance? instance, JsonDocument stateData)
+    private async Task<object?> ExecuteDaprPubSubTaskAsync(DaprPubSubTask task, JsonDocument stateData, JsonDocument config)
     {
         if (task == null) throw new ArgumentNullException(nameof(task));
 
@@ -125,9 +132,9 @@ public class WorkflowTaskProcessor
         var metadata = JsonSerializer.Deserialize<Dictionary<string, string>>(task.Metadata);
 
         var jsonData = dataJson.RootElement.GetRawText();
-        var replacedData = ReplacePlaceholders(jsonData, stateData, instance);
+        var replacedData = ReplacePlaceholders(jsonData, stateData);
         var requestData = JsonSerializer.Deserialize<object>(replacedData);
-        metadata = ReplacePlaceholders(metadata, stateData, instance);
+        metadata = ReplacePlaceholders(metadata, stateData);
 
         await _daprClient.PublishEventAsync(task.PubSubName, task.Topic, requestData, metadata);
         return new { pubsub = task.PubSubName, topic = task.Topic, data = requestData, metadata };
@@ -141,15 +148,12 @@ public class WorkflowTaskProcessor
         return null;
     }
 
-    private async Task<object?> ExecuteHttpTaskAsync(HttpTask? task, WorkflowInstance? instance, JsonDocument stateData)
+    private async Task<object?> ExecuteHttpTaskAsync(HttpTask task, JsonDocument stateData, JsonDocument config)
     {
         if (task == null) throw new ArgumentNullException(nameof(task));
 
         // Create the HTTP request
         var request = new HttpRequestMessage(new HttpMethod(task.Method), task.Url);
-
-        // Parse the config
-        var config = JsonSerializer.Deserialize<JsonDocument>(task.Config);
 
         // Add headers from Config
         if (config?.RootElement.TryGetProperty("headers", out var headersElement) == true)
@@ -168,7 +172,7 @@ public class WorkflowTaskProcessor
         if (config?.RootElement.TryGetProperty("data", out var dataElement) == true)
         {
             var jsonData = dataElement.GetRawText();
-            var replacedData = ReplacePlaceholders(jsonData, stateData, instance);
+            var replacedData = ReplacePlaceholders(jsonData, stateData);
             var requestData = JsonSerializer.Deserialize<object>(replacedData);
             var jsonContent = JsonSerializer.Serialize(requestData);
             request.Content = new StringContent(jsonContent, System.Text.Encoding.UTF8, "application/json");
@@ -183,17 +187,16 @@ public class WorkflowTaskProcessor
         return await response.Content.ReadAsStringAsync();
     }
 
-    private async Task<object?> ExecuteDaprHttpEndpointTaskAsync(DaprHttpEndpointTask? task, WorkflowInstance? instance, JsonDocument stateData)
+    private async Task<object?> ExecuteDaprHttpEndpointTaskAsync(DaprHttpEndpointTask task, JsonDocument stateData, JsonDocument config)
     {
         if (task == null) throw new ArgumentNullException(nameof(task));
 
         // Process request body and headers if provided in Config
-        var config = JsonSerializer.Deserialize<JsonDocument>(task.Config);
         object? requestData = null;
         if (config?.RootElement.TryGetProperty("data", out var dataElement) == true)
         {
             var jsonData = dataElement.GetRawText();
-            var replacedData = ReplacePlaceholders(jsonData, stateData, instance);
+            var replacedData = ReplacePlaceholders(jsonData, stateData);
             requestData = JsonSerializer.Deserialize<object>(replacedData);
         }
 
@@ -207,18 +210,11 @@ public class WorkflowTaskProcessor
         return response;
     }
 
-    private T ReplacePlaceholders<T>(T obj, JsonDocument stateData, WorkflowInstance? instance)
+    private T ReplacePlaceholders<T>(T obj, JsonDocument stateData)
     {
         var json = JsonSerializer.Serialize(obj);
         _logger.LogInformation("Replacing placeholders in: {Json}", json);
         _logger.LogInformation("State data: {StateData}", stateData.RootElement.ToString());
-
-        // Replace workflow placeholders
-        if (instance != null)
-        {
-            json = json.Replace("{{workflow.instanceId}}", instance.Id.ToString());
-            json = json.Replace("{{workflow.timestamp}}", DateTime.UtcNow.ToString("O"));
-        }
 
         // Replace data placeholders
         foreach (var property in stateData.RootElement.EnumerateObject())

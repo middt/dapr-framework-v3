@@ -15,18 +15,15 @@ public class WorkflowTaskAssignment : BaseEntity
     
     public Guid? FunctionId { get; set; }
 
+    public Guid? WorkflowInstanceId { get; set; }
+
     [Required]
     public TaskTrigger Trigger { get; set; }
 
-    public Domain.Models.Tasks.TaskStatus Status { get; set; } = Domain.Models.Tasks.TaskStatus.Pending;
+    public int Order { get; set; }
     
-    public DateTime CreatedAt { get; set; }
-    
-    public DateTime UpdatedAt { get; set; }
-    
-    public DateTime? CompletedAt { get; set; }
-    
-    public string? Result { get; set; }
+    [Column(TypeName = "jsonb")]
+    public string Config { get; set; } = "{}";
 
     // Navigation properties
     [ForeignKey(nameof(TaskId))]
@@ -40,4 +37,7 @@ public class WorkflowTaskAssignment : BaseEntity
 
     [ForeignKey(nameof(FunctionId))]
     public virtual WorkflowFunction? Function { get; set; }
+
+    [ForeignKey(nameof(WorkflowInstanceId))]
+    public virtual WorkflowInstance? Instance { get; set; }
 }

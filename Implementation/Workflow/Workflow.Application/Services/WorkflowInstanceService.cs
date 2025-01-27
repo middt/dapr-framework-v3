@@ -322,7 +322,7 @@ public class WorkflowInstanceService : CRUDDataService<WorkflowInstance, IWorkfl
                     transition.Name,
                     mergedData.RootElement.ToString()
                 );
-                await _taskProcessor.ExecuteTaskAsync(task, mergedData, instance);
+                await _taskProcessor.ExecuteTaskAsync(task, mergedData, taskAssignment);
             }
         }
 
@@ -339,7 +339,7 @@ public class WorkflowInstanceService : CRUDDataService<WorkflowInstance, IWorkfl
                 
                 if (taskAssignment != null)
                 {
-                    await _taskProcessor.ExecuteTaskAsync(task, mergedData, instance);
+                    await _taskProcessor.ExecuteTaskAsync(task, mergedData, taskAssignment);
                 }
             }
         }
@@ -361,7 +361,7 @@ public class WorkflowInstanceService : CRUDDataService<WorkflowInstance, IWorkfl
                 
                 if (taskAssignment != null)
                 {
-                    await _taskProcessor.ExecuteTaskAsync(task, mergedData, instance);
+                    await _taskProcessor.ExecuteTaskAsync(task, mergedData, taskAssignment);
                 }
             }
 
