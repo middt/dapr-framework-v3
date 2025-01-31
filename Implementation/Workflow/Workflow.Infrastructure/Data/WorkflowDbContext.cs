@@ -21,24 +21,54 @@ public class WorkflowDbContext : DbContext
     public DbSet<WorkflowCorrelation> WorkflowCorrelations { get; set; } = null!;
     public DbSet<WorkflowInstanceData> WorkflowInstanceData { get; set; } = null!;
     public DbSet<WorkflowInstanceTask> WorkflowInstanceTasks { get; set; } = null!;
+    public DbSet<WorkflowTask> WorkflowTasks { get; set; } = null!;
+    public DbSet<DaprHttpEndpointTask> DaprHttpEndpointTasks { get; set; } = null!;
+    public DbSet<DaprBindingTask> DaprBindingTasks { get; set; } = null!;
+    public DbSet<DaprServiceTask> DaprServiceTasks { get; set; } = null!;
+    public DbSet<HumanTask> HumanTasks { get; set; } = null!;
+    public DbSet<HttpTask> HttpTasks { get; set; } = null!;
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
 
+        // Configure task assignments
+        modelBuilder.Entity<WorkflowTaskAssignment>()
+            .HasOne(ta => ta.Task)
+            .WithMany(t => t.TaskAssignments)
+            .HasForeignKey(ta => ta.TaskId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<WorkflowTaskAssignment>()
+            .HasOne(ta => ta.State)
+            .WithMany()
+            .HasForeignKey(ta => ta.StateId)
+            .OnDelete(DeleteBehavior.SetNull);
+
+        modelBuilder.Entity<WorkflowTaskAssignment>()
+            .HasOne(ta => ta.Transition)
+            .WithMany()
+            .HasForeignKey(ta => ta.TransitionId)
+            .OnDelete(DeleteBehavior.SetNull);
+
+        modelBuilder.Entity<WorkflowTaskAssignment>()
+            .HasOne(ta => ta.Function)
+            .WithMany()
+            .HasForeignKey(ta => ta.FunctionId)
+            .OnDelete(DeleteBehavior.SetNull);
+
+        // Configure indexes for WorkflowInstanceTask
+        modelBuilder.Entity<WorkflowInstanceTask>()
+            .HasIndex(t => t.Status);
+
+        modelBuilder.Entity<WorkflowInstanceTask>()
+            .HasIndex(t => t.CompletedAt);
+
         // Configure WorkflowTask inheritance using Table-Per-Type (TPT)
         modelBuilder.Entity<WorkflowTask>(entity =>
         {
             entity.ToTable("WorkflowTasks");  // Base table for common properties
-
-            // Configure task execution properties
-            entity.Property(e => e.Status)
-                .HasConversion<string>()
-                .HasMaxLength(20);
             
-            entity.Property(e => e.Result)
-                .HasColumnType("jsonb");
-
             entity.Property(e => e.Name)
                 .HasMaxLength(100)
                 .IsRequired();
@@ -115,13 +145,6 @@ public class WorkflowDbContext : DbContext
             .WithMany()
             .HasForeignKey(c => c.ParentStateId)
             .OnDelete(DeleteBehavior.NoAction);
-
-        // Configure WorkflowFunction relationship with WorkflowTask
-        modelBuilder.Entity<WorkflowFunction>()
-            .HasOne(f => f.Task)
-            .WithMany()
-            .HasForeignKey(f => f.TaskId)
-            .OnDelete(DeleteBehavior.Cascade);
 
         // Add any specific model configurations here
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(WorkflowDbContext).Assembly);

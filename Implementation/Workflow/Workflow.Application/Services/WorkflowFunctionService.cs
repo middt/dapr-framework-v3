@@ -15,26 +15,27 @@ public class WorkflowFunctionService : CRUDDataService<WorkflowFunction, IWorkfl
     private readonly IWorkflowTaskRepository _taskRepository;
     private readonly ILogger<WorkflowFunctionService> _logger;
     private readonly WorkflowTaskProcessor _taskProcessor;
+    private readonly IWorkflowTaskAssignmentRepository _taskAssignmentRepository;
 
     public WorkflowFunctionService(
         IWorkflowFunctionRepository repository,
          IWorkflowTaskRepository taskRepository,
         ILogger<WorkflowFunctionService> logger,
-        WorkflowTaskProcessor taskProcessor) : base(repository)
+        WorkflowTaskProcessor taskProcessor,
+        IWorkflowTaskAssignmentRepository taskAssignmentRepository) : base(repository)
     {
         _repository = repository;
         _taskRepository = taskRepository;
         
         _logger = logger;
         _taskProcessor = taskProcessor;
-
+        _taskAssignmentRepository = taskAssignmentRepository;
     }
 
     public async Task<object?> ExecuteFunctionAsync(string functionName, JsonDocument? data = null)
     {
-        var function = await _repository.GetByNameAsync(functionName);
-        if (function == null)
-            throw new KeyNotFoundException($"Function '{functionName}' not found");
+        var function = await _repository.GetByNameAsync(functionName)
+            ?? throw new KeyNotFoundException($"Function '{functionName}' not found");
 
         if (!function.IsActive)
             throw new InvalidOperationException($"Function '{functionName}' is not active");
@@ -44,14 +45,71 @@ public class WorkflowFunctionService : CRUDDataService<WorkflowFunction, IWorkfl
 
         try
         {
-            function.Task = await _taskRepository.GetByIdAsync(function.TaskId);
-            return await _taskProcessor.ExecuteTaskAsync(function.Task, data, null);
+            var taskAssignments = await _taskAssignmentRepository.GetByFunctionIdAsync(function.Id);
+            var taskAssignment = taskAssignments.FirstOrDefault()
+                ?? throw new InvalidOperationException($"No task assignment found for function {functionName}");
+
+            // Set WorkflowInstanceId to null for standalone function execution
+  
+
+            return await _taskProcessor.ExecuteTaskAsync(null, taskAssignment.Task, data ?? JsonDocument.Parse("{}"), taskAssignment);
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error executing function {FunctionName}", functionName);
             throw;
         }
+    }
+
+    public async Task<object?> ExecuteFunctionAsync(Guid functionId, JsonDocument data)
+    {
+        var function = await _repository.GetByIdAsync(functionId)
+            ?? throw new InvalidOperationException($"Function {functionId} not found");
+
+        var taskAssignments = await _taskAssignmentRepository.GetByFunctionIdAsync(functionId);
+        if (!taskAssignments.Any())
+            throw new InvalidOperationException($"No task assignments found for function {functionId}");
+
+        var results = new List<object?>();
+        
+        // Execute tasks in order
+        foreach (var taskAssignment in taskAssignments.OrderBy(ta => ta.Order))
+        {
+            var result = await _taskProcessor.ExecuteTaskAsync(null, taskAssignment.Task, data, taskAssignment);
+            if (result != null)
+            {
+                results.Add(result);
+            }
+        }
+
+        // If no results, return null
+        if (!results.Any())
+            return null;
+
+        // If single result, return it directly
+        if (results.Count == 1)
+            return results[0];
+
+        // Merge multiple results
+        return JsonSerializer.Deserialize<object>(
+            JsonSerializer.Serialize(
+                results.Select(r => JsonSerializer.Deserialize<JsonElement>(JsonSerializer.Serialize(r)))
+                      .Aggregate((a, b) => JsonDocument.Parse(MergeJsonElements(a, b).ToString()).RootElement)
+            )
+        );
+    }
+
+    private JsonElement MergeJsonElements(JsonElement a, JsonElement b)
+    {
+        var merged = new Dictionary<string, JsonElement>();
+        
+        foreach (var property in a.EnumerateObject())
+            merged[property.Name] = property.Value;
+            
+        foreach (var property in b.EnumerateObject())
+            merged[property.Name] = property.Value;
+
+        return JsonSerializer.Deserialize<JsonElement>(JsonSerializer.Serialize(merged));
     }
 
     public async Task<WorkflowFunction?> GetByNameAsync(string name)

@@ -12,8 +12,8 @@ using Workflow.Infrastructure.Data;
 namespace Workflow.Infrastructure.Migrations
 {
     [DbContext(typeof(WorkflowDbContext))]
-    [Migration("20250123133104_InitialCreate")]
-    partial class InitialCreate
+    [Migration("20250129091559_Initial")]
+    partial class Initial
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -110,7 +110,11 @@ namespace Workflow.Infrastructure.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("CompletedAt");
+
                     b.HasIndex("StateId");
+
+                    b.HasIndex("Status");
 
                     b.HasIndex("WorkflowInstanceId");
 
@@ -124,9 +128,6 @@ namespace Workflow.Infrastructure.Migrations
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
-
-                    b.Property<DateTime?>("CompletedAt")
-                        .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("Config")
                         .IsRequired()
@@ -143,17 +144,6 @@ namespace Workflow.Infrastructure.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)");
 
-                    b.Property<string>("Result")
-                        .HasColumnType("jsonb");
-
-                    b.Property<string>("Status")
-                        .IsRequired()
-                        .HasMaxLength(20)
-                        .HasColumnType("character varying(20)");
-
-                    b.Property<int>("Trigger")
-                        .HasColumnType("integer");
-
                     b.Property<int>("Type")
                         .HasColumnType("integer");
 
@@ -167,6 +157,57 @@ namespace Workflow.Infrastructure.Migrations
                     b.ToTable("WorkflowTasks", (string)null);
 
                     b.UseTptMappingStrategy();
+                });
+
+            modelBuilder.Entity("Workflow.Domain.Models.Tasks.WorkflowTaskAssignment", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Config")
+                        .IsRequired()
+                        .HasColumnType("jsonb");
+
+                    b.Property<Guid?>("FunctionId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("Order")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid?>("StateId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("TaskId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid?>("TransitionId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("Trigger")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid?>("WorkflowInstanceId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid?>("WorkflowTransitionId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("FunctionId");
+
+                    b.HasIndex("StateId");
+
+                    b.HasIndex("TaskId");
+
+                    b.HasIndex("TransitionId");
+
+                    b.HasIndex("WorkflowInstanceId");
+
+                    b.HasIndex("WorkflowTransitionId");
+
+                    b.ToTable("WorkflowTaskAssignment");
                 });
 
             modelBuilder.Entity("Workflow.Domain.Models.Views.WorkflowView", b =>
@@ -319,9 +360,6 @@ namespace Workflow.Infrastructure.Migrations
                     b.Property<Guid?>("StateId")
                         .HasColumnType("uuid");
 
-                    b.Property<Guid>("TaskId")
-                        .HasColumnType("uuid");
-
                     b.Property<Guid?>("WorkflowDefinitionId")
                         .HasColumnType("uuid");
 
@@ -329,8 +367,6 @@ namespace Workflow.Infrastructure.Migrations
                         .HasColumnType("uuid");
 
                     b.HasKey("Id");
-
-                    b.HasIndex("TaskId");
 
                     b.HasIndex("WorkflowDefinitionId");
 
@@ -539,6 +575,9 @@ namespace Workflow.Infrastructure.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)");
 
+                    b.Property<Guid?>("TaskId")
+                        .HasColumnType("uuid");
+
                     b.Property<Guid>("ToStateId")
                         .HasColumnType("uuid");
 
@@ -557,6 +596,8 @@ namespace Workflow.Infrastructure.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("FromStateId");
+
+                    b.HasIndex("TaskId");
 
                     b.HasIndex("ToStateId");
 
@@ -806,11 +847,51 @@ namespace Workflow.Infrastructure.Migrations
 
             modelBuilder.Entity("Workflow.Domain.Models.Tasks.WorkflowTask", b =>
                 {
-                    b.HasOne("Workflow.Domain.Models.WorkflowState", "WorkflowState")
+                    b.HasOne("Workflow.Domain.Models.WorkflowState", null)
                         .WithMany("Tasks")
                         .HasForeignKey("WorkflowStateId");
+                });
 
-                    b.Navigation("WorkflowState");
+            modelBuilder.Entity("Workflow.Domain.Models.Tasks.WorkflowTaskAssignment", b =>
+                {
+                    b.HasOne("Workflow.Domain.Models.WorkflowFunction", "Function")
+                        .WithMany()
+                        .HasForeignKey("FunctionId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("Workflow.Domain.Models.WorkflowState", "State")
+                        .WithMany()
+                        .HasForeignKey("StateId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("Workflow.Domain.Models.Tasks.WorkflowTask", "Task")
+                        .WithMany("TaskAssignments")
+                        .HasForeignKey("TaskId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Workflow.Domain.Models.WorkflowTransition", "Transition")
+                        .WithMany()
+                        .HasForeignKey("TransitionId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("Workflow.Domain.Models.WorkflowInstance", "Instance")
+                        .WithMany()
+                        .HasForeignKey("WorkflowInstanceId");
+
+                    b.HasOne("Workflow.Domain.Models.WorkflowTransition", null)
+                        .WithMany("TaskAssignments")
+                        .HasForeignKey("WorkflowTransitionId");
+
+                    b.Navigation("Function");
+
+                    b.Navigation("Instance");
+
+                    b.Navigation("State");
+
+                    b.Navigation("Task");
+
+                    b.Navigation("Transition");
                 });
 
             modelBuilder.Entity("Workflow.Domain.Models.Views.WorkflowView", b =>
@@ -865,12 +946,6 @@ namespace Workflow.Infrastructure.Migrations
 
             modelBuilder.Entity("Workflow.Domain.Models.WorkflowFunction", b =>
                 {
-                    b.HasOne("Workflow.Domain.Models.Tasks.WorkflowTask", "Task")
-                        .WithMany()
-                        .HasForeignKey("TaskId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
                     b.HasOne("Workflow.Domain.Models.WorkflowDefinition", "WorkflowDefinition")
                         .WithMany()
                         .HasForeignKey("WorkflowDefinitionId")
@@ -879,8 +954,6 @@ namespace Workflow.Infrastructure.Migrations
                     b.HasOne("Workflow.Domain.Models.WorkflowDefinition", null)
                         .WithMany("Functions")
                         .HasForeignKey("WorkflowDefinitionId1");
-
-                    b.Navigation("Task");
 
                     b.Navigation("WorkflowDefinition");
                 });
@@ -972,6 +1045,10 @@ namespace Workflow.Infrastructure.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
+                    b.HasOne("Workflow.Domain.Models.Tasks.WorkflowTask", "Task")
+                        .WithMany()
+                        .HasForeignKey("TaskId");
+
                     b.HasOne("Workflow.Domain.Models.WorkflowState", "ToState")
                         .WithMany()
                         .HasForeignKey("ToStateId")
@@ -985,6 +1062,8 @@ namespace Workflow.Infrastructure.Migrations
                         .IsRequired();
 
                     b.Navigation("FromState");
+
+                    b.Navigation("Task");
 
                     b.Navigation("ToState");
 
@@ -1060,6 +1139,11 @@ namespace Workflow.Infrastructure.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("Workflow.Domain.Models.Tasks.WorkflowTask", b =>
+                {
+                    b.Navigation("TaskAssignments");
+                });
+
             modelBuilder.Entity("Workflow.Domain.Models.WorkflowDefinition", b =>
                 {
                     b.Navigation("Functions");
@@ -1095,6 +1179,8 @@ namespace Workflow.Infrastructure.Migrations
 
             modelBuilder.Entity("Workflow.Domain.Models.WorkflowTransition", b =>
                 {
+                    b.Navigation("TaskAssignments");
+
                     b.Navigation("Views");
                 });
 #pragma warning restore 612, 618

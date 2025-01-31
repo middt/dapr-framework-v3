@@ -8,6 +8,9 @@ using Workflow.Infrastructure.Data;
 using Workflow.Domain.Repositories;
 using Dapr.Framework.Infrastructure.Repositories;
 using Dapr.Framework.Domain.Services;
+
+namespace Workflow.Infrastructure.Repositories;
+
 public class WorkflowTaskRepository : EfCRUDRepository<WorkflowTask>, IWorkflowTaskRepository
 {
     private readonly WorkflowDbContext _context;
@@ -21,8 +24,24 @@ public class WorkflowTaskRepository : EfCRUDRepository<WorkflowTask>, IWorkflowT
     public async Task<IEnumerable<WorkflowTask>> GetByStateIdAsync(Guid stateId)
     {
         return await _context.Set<WorkflowTask>()
-            .AsNoTracking()
-            .Where(t => t.WorkflowStateId == stateId)
+            .Include(t => t.TaskAssignments)
+            .Where(t => t.TaskAssignments.Any(ta => ta.StateId == stateId))
+            .ToListAsync();
+    }
+
+    public async Task<IEnumerable<WorkflowTask>> GetByTransitionIdAsync(Guid transitionId)
+    {
+        return await _context.Set<WorkflowTask>()
+            .Include(t => t.TaskAssignments)
+            .Where(t => t.TaskAssignments.Any(ta => ta.TransitionId == transitionId))
+            .ToListAsync();
+    }
+
+    public async Task<IEnumerable<WorkflowTask>> GetByFunctionIdAsync(Guid functionId)
+    {
+        return await _context.Set<WorkflowTask>()
+            .Include(t => t.TaskAssignments)
+            .Where(t => t.TaskAssignments.Any(ta => ta.FunctionId == functionId))
             .ToListAsync();
     }
 

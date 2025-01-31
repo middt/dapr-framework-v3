@@ -6,6 +6,7 @@ using Workflow.Domain.Models;
 using Workflow.Domain.Models.Tasks;
 using Workflow.Domain.Models.Views;
 using Microsoft.EntityFrameworkCore;
+using TaskTrigger = Workflow.Domain.Models.Tasks.TaskTrigger;
 
 namespace Workflow.Infrastructure.Data;
 
@@ -224,8 +225,7 @@ public static class TaskDbSeed
             Id = Guid.NewGuid(),
             Name = "Review Document",
             Description = "Review the submitted document",
-            Trigger = TaskTrigger.OnEntry,
-            Type = Workflow.Domain.Models.Tasks.TaskType.Human,
+            Type = TaskType.Human,
             CreatedAt = DateTime.UtcNow,
             Title = "Document Review Required",
             Instructions = "Please review the submitted document and approve or reject it.",
@@ -268,7 +268,14 @@ public static class TaskDbSeed
                 ""escalationAssignee"": ""supervisor""
             }").RootElement.ToString()
         };
-        reviewState.Tasks.Add(reviewTask);
+
+        var reviewTaskAssignment = new WorkflowTaskAssignment
+        {
+            Id = Guid.NewGuid(),
+            TaskId = reviewTask.Id,
+            StateId = reviewState.Id,
+            Trigger = TaskTrigger.OnEntry
+        };
 
         // Add email notification task to Published state
         var emailTask = new DaprBindingTask
@@ -276,8 +283,7 @@ public static class TaskDbSeed
             Id = Guid.NewGuid(),
             Name = "Send Publication Notification",
             Description = "Send email notification when document is published",
-            Trigger = TaskTrigger.OnEntry,
-            Type = Workflow.Domain.Models.Tasks.TaskType.DaprBinding,
+            Type = TaskType.DaprBinding,
             CreatedAt = DateTime.UtcNow,
             BindingName = "smtp",
             Operation = "create",
@@ -302,7 +308,14 @@ public static class TaskDbSeed
                     """
             })
         };
-        publishedState.Tasks.Add(emailTask);
+
+        var emailTaskAssignment = new WorkflowTaskAssignment
+        {
+            Id = Guid.NewGuid(),
+            TaskId = emailTask.Id,
+            StateId = publishedState.Id,
+            Trigger = TaskTrigger.OnEntry
+        };
 
         // Add standalone HTTP task using httpbin external service
         var httpTask = new HttpTask
@@ -310,10 +323,8 @@ public static class TaskDbSeed
             Id = Guid.NewGuid(),
             Name = "Test External API",
             Description = "Test external API call using httpbin",
-            Type = Workflow.Domain.Models.Tasks.TaskType.Http,
-            Trigger = TaskTrigger.Manual,
+            Type = TaskType.Http,
             CreatedAt = DateTime.UtcNow,
-            WorkflowStateId = null,
             Url = "https://httpbin.org/post",
             Method = "POST",
             Config = JsonSerializer.Serialize(new
@@ -331,12 +342,18 @@ public static class TaskDbSeed
             })
         };
 
+        var httpTaskAssignment = new WorkflowTaskAssignment
+        {
+            Id = Guid.NewGuid(),
+            TaskId = httpTask.Id,
+            Trigger = TaskTrigger.Manual
+        };
+
         var workflowFunction = new WorkflowFunction
         {
             Id = Guid.NewGuid(),
             Name = "Test External API Function",
             Description = "Function wrapping the external API call",
-            TaskId = httpTask.Id,  // Reference to the HttpTask
             IsActive = true,
             EnrichStateData = true,
             Order = 1
@@ -348,10 +365,8 @@ public static class TaskDbSeed
             Id = Guid.NewGuid(),
             Name = "External Service Call",
             Description = "Call external service through Dapr binding",
-            Type = Workflow.Domain.Models.Tasks.TaskType.DaprBinding,
-            Trigger = TaskTrigger.Manual,
+            Type = TaskType.DaprBinding,
             CreatedAt = DateTime.UtcNow,
-            WorkflowStateId = null,
             BindingName = "http-output",
             Operation = "get",
             Metadata = JsonSerializer.Serialize(new Dictionary<string, string>
@@ -368,12 +383,19 @@ public static class TaskDbSeed
             })
         };
 
+        var externalServiceTaskAssignment = new WorkflowTaskAssignment
+        {
+            Id = Guid.NewGuid(),
+            TaskId = externalServiceTask.Id,
+            Trigger = TaskTrigger.Manual,
+            // FunctionId = externalServiceTask.Id
+        };
+
         var externalServiceFunction = new WorkflowFunction
         {
             Id = Guid.NewGuid(),
             Name = "External Service Function",
             Description = "Function wrapping the external service call through Dapr binding",
-            TaskId = externalServiceTask.Id,
             IsActive = true,
             EnrichStateData = true,
             Order = 1
@@ -385,10 +407,8 @@ public static class TaskDbSeed
             Id = Guid.NewGuid(),
             Name = "External API via HTTPEndpoint",
             Description = "Call external API through Dapr HTTPEndpoint",
-            Type = Workflow.Domain.Models.Tasks.TaskType.DaprHttpEndpoint,
-            Trigger = TaskTrigger.Manual,
+            Type = TaskType.DaprHttpEndpoint,
             CreatedAt = DateTime.UtcNow,
-            WorkflowStateId = null,
             EndpointName = "httpbin",
             Path = "/post",
             Method = "POST",
@@ -406,12 +426,19 @@ public static class TaskDbSeed
             })
         };
 
+        var httpEndpointTaskAssignment = new WorkflowTaskAssignment
+        {
+            Id = Guid.NewGuid(),
+            TaskId = httpEndpointTask.Id,
+            Trigger = TaskTrigger.Manual,
+            // FunctionId = externalServiceFunction.Id
+        };
+
         var httpEndpointFunction = new WorkflowFunction
         {
             Id = Guid.NewGuid(),
             Name = "External Service via HTTPEndpoint",
             Description = "Function wrapping the external service call through HTTPEndpoint",
-            TaskId = httpEndpointTask.Id,
             IsActive = true,
             EnrichStateData = true,
             Order = 1
@@ -421,12 +448,18 @@ public static class TaskDbSeed
         documentWorkflow.States = states;
         documentWorkflow.Transitions = transitions;
         await context.WorkflowDefinitions.AddAsync(documentWorkflow);
+        await context.Set<HumanTask>().AddAsync(reviewTask);
         await context.Set<DaprBindingTask>().AddAsync(emailTask);
         await context.Set<HttpTask>().AddAsync(httpTask);
+        await context.Set<WorkflowTaskAssignment>().AddAsync(reviewTaskAssignment);
+        await context.Set<WorkflowTaskAssignment>().AddAsync(emailTaskAssignment);
+        await context.Set<WorkflowTaskAssignment>().AddAsync(httpTaskAssignment);
         await context.Set<WorkflowFunction>().AddAsync(workflowFunction);
         await context.Set<DaprBindingTask>().AddAsync(externalServiceTask);
+        await context.Set<WorkflowTaskAssignment>().AddAsync(externalServiceTaskAssignment);
         await context.Set<WorkflowFunction>().AddAsync(externalServiceFunction);
         await context.Set<DaprHttpEndpointTask>().AddAsync(httpEndpointTask);
+        await context.Set<WorkflowTaskAssignment>().AddAsync(httpEndpointTaskAssignment);
         await context.Set<WorkflowFunction>().AddAsync(httpEndpointFunction);
         await context.SaveChangesAsync();
     }

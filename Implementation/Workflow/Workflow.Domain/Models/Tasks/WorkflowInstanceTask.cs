@@ -3,12 +3,15 @@ using Dapr.Framework.Domain.Entities;
 
 namespace Workflow.Domain.Models.Tasks;
 
+/// <summary>
+/// Execute olan task'ların kaydın tutulduğu domain
+/// </summary>
 public class WorkflowInstanceTask : IEntity
 {
     public Guid Id { get; set; }
-    public Guid WorkflowInstanceId { get; set; }
+    public Guid? WorkflowInstanceId { get; set; }
     public Guid WorkflowTaskId { get; set; }
-    public Guid StateId { get; set; }
+    public Guid? StateId { get; set; }
     public string TaskName { get; set; } = string.Empty;
     public TaskType TaskType { get; set; }
     public TaskStatus Status { get; set; }

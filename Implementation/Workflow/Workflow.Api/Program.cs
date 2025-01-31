@@ -103,6 +103,7 @@ builder.Services.AddScoped<IWorkflowCorrelationRepository, WorkflowCorrelationRe
 builder.Services.AddScoped<IWorkflowInstanceDataRepository, WorkflowInstanceDataRepository>();
 builder.Services.AddScoped<IWorkflowInstanceTaskRepository, WorkflowInstanceTaskRepository>();
 builder.Services.AddScoped<IWorkflowTaskRepository, WorkflowTaskRepository>();
+builder.Services.AddScoped<IWorkflowTaskAssignmentRepository, WorkflowTaskAssignmentRepository>();
 // Register services
 builder.Services.AddScoped<IWorkflowDefinitionService, WorkflowDefinitionService>();
 builder.Services.AddScoped<IWorkflowInstanceService, WorkflowInstanceService>();
