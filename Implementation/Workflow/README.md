@@ -24,3 +24,6 @@ The Workflow Engine provides a flexible system for defining and executing busine
 4. Create workflow instances
 5. Execute tasks and transition states
 
+
+`dapr run --app-id "workflow-api" --app-port "5007" --dapr-grpc-port "50001" --dapr-http-port "3500" --components-path "./AppHost/components" --config "./AppHost/config.yaml"`
+

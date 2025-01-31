@@ -10,6 +10,7 @@ Content-Type: application/json
     "timestamp": "{{$datetime iso8601}}"
 }
 
+//TODO: DB HATASI ona bak.
 ### Test External Service Function (Dapr Binding)
 POST {{api}}/workflow-functions/External Service Function/execute
 Content-Type: application/json
@@ -25,7 +26,7 @@ Content-Type: application/json
 
 {
     "message": "Custom message from HTTPEndpoint test",
-    "customTimestamp": "{{$datetime iso8601}}"
+    "timestamp": "{{$datetime iso8601}}"
 }
 
 ### List all workflow functions

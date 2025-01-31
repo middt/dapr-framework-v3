@@ -6,7 +6,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace Workflow.Infrastructure.Migrations
 {
     /// <inheritdoc />
-    public partial class InitialCreate : Migration
+    public partial class Initial : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -26,6 +26,37 @@ namespace Workflow.Infrastructure.Migrations
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_WorkflowDefinitions", x => x.Id);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "WorkflowFunctions",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "uuid", nullable: false),
+                    Name = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: false),
+                    Description = table.Column<string>(type: "text", nullable: true),
+                    IsActive = table.Column<bool>(type: "boolean", nullable: false),
+                    StateId = table.Column<Guid>(type: "uuid", nullable: true),
+                    WorkflowDefinitionId = table.Column<Guid>(type: "uuid", nullable: true),
+                    ResponseMapping = table.Column<string>(type: "text", nullable: true),
+                    EnrichStateData = table.Column<bool>(type: "boolean", nullable: false),
+                    Order = table.Column<int>(type: "integer", nullable: false),
+                    WorkflowDefinitionId1 = table.Column<Guid>(type: "uuid", nullable: true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_WorkflowFunctions", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_WorkflowFunctions_WorkflowDefinitions_WorkflowDefinitionId",
+                        column: x => x.WorkflowDefinitionId,
+                        principalTable: "WorkflowDefinitions",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.SetNull);
+                    table.ForeignKey(
+                        name: "FK_WorkflowFunctions_WorkflowDefinitions_WorkflowDefinitionId1",
+                        column: x => x.WorkflowDefinitionId1,
+                        principalTable: "WorkflowDefinitions",
+                        principalColumn: "Id");
                 });
 
             migrationBuilder.CreateTable(
@@ -81,6 +112,30 @@ namespace Workflow.Infrastructure.Migrations
                 });
 
             migrationBuilder.CreateTable(
+                name: "WorkflowFunctionStates",
+                columns: table => new
+                {
+                    StatesId = table.Column<Guid>(type: "uuid", nullable: false),
+                    WorkflowFunctionId = table.Column<Guid>(type: "uuid", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_WorkflowFunctionStates", x => new { x.StatesId, x.WorkflowFunctionId });
+                    table.ForeignKey(
+                        name: "FK_WorkflowFunctionStates_WorkflowFunctions_WorkflowFunctionId",
+                        column: x => x.WorkflowFunctionId,
+                        principalTable: "WorkflowFunctions",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                    table.ForeignKey(
+                        name: "FK_WorkflowFunctionStates_WorkflowStates_StatesId",
+                        column: x => x.StatesId,
+                        principalTable: "WorkflowStates",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
                 name: "WorkflowInstances",
                 columns: table => new
                 {
@@ -116,13 +171,9 @@ namespace Workflow.Infrastructure.Migrations
                     Id = table.Column<Guid>(type: "uuid", nullable: false),
                     Name = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: false),
                     Description = table.Column<string>(type: "text", nullable: true),
-                    Trigger = table.Column<int>(type: "integer", nullable: false),
                     Type = table.Column<int>(type: "integer", nullable: false),
                     Config = table.Column<string>(type: "jsonb", nullable: false),
                     CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
-                    Status = table.Column<string>(type: "character varying(20)", maxLength: 20, nullable: false),
-                    CompletedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
-                    Result = table.Column<string>(type: "jsonb", nullable: true),
                     WorkflowStateId = table.Column<Guid>(type: "uuid", nullable: true)
                 },
                 constraints: table =>
@@ -133,42 +184,6 @@ namespace Workflow.Infrastructure.Migrations
                         column: x => x.WorkflowStateId,
                         principalTable: "WorkflowStates",
                         principalColumn: "Id");
-                });
-
-            migrationBuilder.CreateTable(
-                name: "WorkflowTransitions",
-                columns: table => new
-                {
-                    Id = table.Column<Guid>(type: "uuid", nullable: false),
-                    WorkflowDefinitionId = table.Column<Guid>(type: "uuid", nullable: false),
-                    FromStateId = table.Column<Guid>(type: "uuid", nullable: false),
-                    ToStateId = table.Column<Guid>(type: "uuid", nullable: false),
-                    Name = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: false),
-                    Description = table.Column<string>(type: "text", nullable: true),
-                    TriggerType = table.Column<int>(type: "integer", nullable: false),
-                    _triggerConfig = table.Column<string>(type: "jsonb", nullable: false, defaultValue: "{}")
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_WorkflowTransitions", x => x.Id);
-                    table.ForeignKey(
-                        name: "FK_WorkflowTransitions_WorkflowDefinitions_WorkflowDefinitionId",
-                        column: x => x.WorkflowDefinitionId,
-                        principalTable: "WorkflowDefinitions",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
-                    table.ForeignKey(
-                        name: "FK_WorkflowTransitions_WorkflowStates_FromStateId",
-                        column: x => x.FromStateId,
-                        principalTable: "WorkflowStates",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
-                    table.ForeignKey(
-                        name: "FK_WorkflowTransitions_WorkflowStates_ToStateId",
-                        column: x => x.ToStateId,
-                        principalTable: "WorkflowStates",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
                 });
 
             migrationBuilder.CreateTable(
@@ -420,44 +435,6 @@ namespace Workflow.Infrastructure.Migrations
                 });
 
             migrationBuilder.CreateTable(
-                name: "WorkflowFunctions",
-                columns: table => new
-                {
-                    Id = table.Column<Guid>(type: "uuid", nullable: false),
-                    Name = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: false),
-                    Description = table.Column<string>(type: "text", nullable: true),
-                    IsActive = table.Column<bool>(type: "boolean", nullable: false),
-                    TaskId = table.Column<Guid>(type: "uuid", nullable: false),
-                    StateId = table.Column<Guid>(type: "uuid", nullable: true),
-                    WorkflowDefinitionId = table.Column<Guid>(type: "uuid", nullable: true),
-                    ResponseMapping = table.Column<string>(type: "text", nullable: true),
-                    EnrichStateData = table.Column<bool>(type: "boolean", nullable: false),
-                    Order = table.Column<int>(type: "integer", nullable: false),
-                    WorkflowDefinitionId1 = table.Column<Guid>(type: "uuid", nullable: true)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_WorkflowFunctions", x => x.Id);
-                    table.ForeignKey(
-                        name: "FK_WorkflowFunctions_WorkflowDefinitions_WorkflowDefinitionId",
-                        column: x => x.WorkflowDefinitionId,
-                        principalTable: "WorkflowDefinitions",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.SetNull);
-                    table.ForeignKey(
-                        name: "FK_WorkflowFunctions_WorkflowDefinitions_WorkflowDefinitionId1",
-                        column: x => x.WorkflowDefinitionId1,
-                        principalTable: "WorkflowDefinitions",
-                        principalColumn: "Id");
-                    table.ForeignKey(
-                        name: "FK_WorkflowFunctions_WorkflowTasks_TaskId",
-                        column: x => x.TaskId,
-                        principalTable: "WorkflowTasks",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
-                });
-
-            migrationBuilder.CreateTable(
                 name: "WorkflowInstanceTasks",
                 columns: table => new
                 {
@@ -500,6 +477,102 @@ namespace Workflow.Infrastructure.Migrations
                 });
 
             migrationBuilder.CreateTable(
+                name: "WorkflowTransitions",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "uuid", nullable: false),
+                    WorkflowDefinitionId = table.Column<Guid>(type: "uuid", nullable: false),
+                    FromStateId = table.Column<Guid>(type: "uuid", nullable: false),
+                    ToStateId = table.Column<Guid>(type: "uuid", nullable: false),
+                    Name = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: false),
+                    Description = table.Column<string>(type: "text", nullable: true),
+                    TriggerType = table.Column<int>(type: "integer", nullable: false),
+                    TaskId = table.Column<Guid>(type: "uuid", nullable: true),
+                    _triggerConfig = table.Column<string>(type: "jsonb", nullable: false, defaultValue: "{}")
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_WorkflowTransitions", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_WorkflowTransitions_WorkflowDefinitions_WorkflowDefinitionId",
+                        column: x => x.WorkflowDefinitionId,
+                        principalTable: "WorkflowDefinitions",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                    table.ForeignKey(
+                        name: "FK_WorkflowTransitions_WorkflowStates_FromStateId",
+                        column: x => x.FromStateId,
+                        principalTable: "WorkflowStates",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                    table.ForeignKey(
+                        name: "FK_WorkflowTransitions_WorkflowStates_ToStateId",
+                        column: x => x.ToStateId,
+                        principalTable: "WorkflowStates",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                    table.ForeignKey(
+                        name: "FK_WorkflowTransitions_WorkflowTasks_TaskId",
+                        column: x => x.TaskId,
+                        principalTable: "WorkflowTasks",
+                        principalColumn: "Id");
+                });
+
+            migrationBuilder.CreateTable(
+                name: "WorkflowTaskAssignment",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "uuid", nullable: false),
+                    TaskId = table.Column<Guid>(type: "uuid", nullable: false),
+                    StateId = table.Column<Guid>(type: "uuid", nullable: true),
+                    TransitionId = table.Column<Guid>(type: "uuid", nullable: true),
+                    FunctionId = table.Column<Guid>(type: "uuid", nullable: true),
+                    WorkflowInstanceId = table.Column<Guid>(type: "uuid", nullable: true),
+                    Trigger = table.Column<int>(type: "integer", nullable: false),
+                    Order = table.Column<int>(type: "integer", nullable: false),
+                    Config = table.Column<string>(type: "jsonb", nullable: false),
+                    WorkflowTransitionId = table.Column<Guid>(type: "uuid", nullable: true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_WorkflowTaskAssignment", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_WorkflowTaskAssignment_WorkflowFunctions_FunctionId",
+                        column: x => x.FunctionId,
+                        principalTable: "WorkflowFunctions",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.SetNull);
+                    table.ForeignKey(
+                        name: "FK_WorkflowTaskAssignment_WorkflowInstances_WorkflowInstanceId",
+                        column: x => x.WorkflowInstanceId,
+                        principalTable: "WorkflowInstances",
+                        principalColumn: "Id");
+                    table.ForeignKey(
+                        name: "FK_WorkflowTaskAssignment_WorkflowStates_StateId",
+                        column: x => x.StateId,
+                        principalTable: "WorkflowStates",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.SetNull);
+                    table.ForeignKey(
+                        name: "FK_WorkflowTaskAssignment_WorkflowTasks_TaskId",
+                        column: x => x.TaskId,
+                        principalTable: "WorkflowTasks",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                    table.ForeignKey(
+                        name: "FK_WorkflowTaskAssignment_WorkflowTransitions_TransitionId",
+                        column: x => x.TransitionId,
+                        principalTable: "WorkflowTransitions",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.SetNull);
+                    table.ForeignKey(
+                        name: "FK_WorkflowTaskAssignment_WorkflowTransitions_WorkflowTransiti~",
+                        column: x => x.WorkflowTransitionId,
+                        principalTable: "WorkflowTransitions",
+                        principalColumn: "Id");
+                });
+
+            migrationBuilder.CreateTable(
                 name: "WorkflowViews",
                 columns: table => new
                 {
@@ -536,30 +609,6 @@ namespace Workflow.Infrastructure.Migrations
                         principalColumn: "Id");
                 });
 
-            migrationBuilder.CreateTable(
-                name: "WorkflowFunctionStates",
-                columns: table => new
-                {
-                    StatesId = table.Column<Guid>(type: "uuid", nullable: false),
-                    WorkflowFunctionId = table.Column<Guid>(type: "uuid", nullable: false)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_WorkflowFunctionStates", x => new { x.StatesId, x.WorkflowFunctionId });
-                    table.ForeignKey(
-                        name: "FK_WorkflowFunctionStates_WorkflowFunctions_WorkflowFunctionId",
-                        column: x => x.WorkflowFunctionId,
-                        principalTable: "WorkflowFunctions",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
-                    table.ForeignKey(
-                        name: "FK_WorkflowFunctionStates_WorkflowStates_StatesId",
-                        column: x => x.StatesId,
-                        principalTable: "WorkflowStates",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
-                });
-
             migrationBuilder.CreateIndex(
                 name: "IX_SubflowConfig_StateId",
                 table: "SubflowConfig",
@@ -586,11 +635,6 @@ namespace Workflow.Infrastructure.Migrations
                 table: "WorkflowCorrelations",
                 column: "SubflowInstanceId",
                 unique: true);
-
-            migrationBuilder.CreateIndex(
-                name: "IX_WorkflowFunctions_TaskId",
-                table: "WorkflowFunctions",
-                column: "TaskId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_WorkflowFunctions_WorkflowDefinitionId",
@@ -634,9 +678,19 @@ namespace Workflow.Infrastructure.Migrations
                 column: "WorkflowDefinitionId");
 
             migrationBuilder.CreateIndex(
+                name: "IX_WorkflowInstanceTasks_CompletedAt",
+                table: "WorkflowInstanceTasks",
+                column: "CompletedAt");
+
+            migrationBuilder.CreateIndex(
                 name: "IX_WorkflowInstanceTasks_StateId",
                 table: "WorkflowInstanceTasks",
                 column: "StateId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_WorkflowInstanceTasks_Status",
+                table: "WorkflowInstanceTasks",
+                column: "Status");
 
             migrationBuilder.CreateIndex(
                 name: "IX_WorkflowInstanceTasks_WorkflowInstanceId",
@@ -664,6 +718,36 @@ namespace Workflow.Infrastructure.Migrations
                 column: "WorkflowDefinitionId");
 
             migrationBuilder.CreateIndex(
+                name: "IX_WorkflowTaskAssignment_FunctionId",
+                table: "WorkflowTaskAssignment",
+                column: "FunctionId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_WorkflowTaskAssignment_StateId",
+                table: "WorkflowTaskAssignment",
+                column: "StateId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_WorkflowTaskAssignment_TaskId",
+                table: "WorkflowTaskAssignment",
+                column: "TaskId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_WorkflowTaskAssignment_TransitionId",
+                table: "WorkflowTaskAssignment",
+                column: "TransitionId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_WorkflowTaskAssignment_WorkflowInstanceId",
+                table: "WorkflowTaskAssignment",
+                column: "WorkflowInstanceId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_WorkflowTaskAssignment_WorkflowTransitionId",
+                table: "WorkflowTaskAssignment",
+                column: "WorkflowTransitionId");
+
+            migrationBuilder.CreateIndex(
                 name: "IX_WorkflowTasks_WorkflowStateId",
                 table: "WorkflowTasks",
                 column: "WorkflowStateId");
@@ -672,6 +756,11 @@ namespace Workflow.Infrastructure.Migrations
                 name: "IX_WorkflowTransitions_FromStateId",
                 table: "WorkflowTransitions",
                 column: "FromStateId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_WorkflowTransitions_TaskId",
+                table: "WorkflowTransitions",
+                column: "TaskId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_WorkflowTransitions_ToStateId",
@@ -740,6 +829,9 @@ namespace Workflow.Infrastructure.Migrations
 
             migrationBuilder.DropTable(
                 name: "WorkflowStateData");
+
+            migrationBuilder.DropTable(
+                name: "WorkflowTaskAssignment");
 
             migrationBuilder.DropTable(
                 name: "WorkflowViews");

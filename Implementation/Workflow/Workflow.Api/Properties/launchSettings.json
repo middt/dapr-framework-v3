@@ -8,7 +8,9 @@
 			"launchUrl": "swagger",
 			"applicationUrl": "http://localhost:5007;https://localhost:50013",
 			"environmentVariables": {
-				"ASPNETCORE_ENVIRONMENT": "Development"
+				"ASPNETCORE_ENVIRONMENT": "Development",
+				"DAPR_HTTP_PORT": "3500",
+				"DAPR_GRPC_PORT": "50001"
 			}
 		}
 	}

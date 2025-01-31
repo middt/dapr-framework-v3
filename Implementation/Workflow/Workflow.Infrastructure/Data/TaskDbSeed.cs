@@ -387,7 +387,8 @@ public static class TaskDbSeed
         {
             Id = Guid.NewGuid(),
             TaskId = externalServiceTask.Id,
-            Trigger = TaskTrigger.Manual
+            Trigger = TaskTrigger.Manual,
+            // FunctionId = externalServiceTask.Id
         };
 
         var externalServiceFunction = new WorkflowFunction
@@ -429,7 +430,8 @@ public static class TaskDbSeed
         {
             Id = Guid.NewGuid(),
             TaskId = httpEndpointTask.Id,
-            Trigger = TaskTrigger.Manual
+            Trigger = TaskTrigger.Manual,
+            // FunctionId = externalServiceFunction.Id
         };
 
         var httpEndpointFunction = new WorkflowFunction

@@ -33,14 +33,14 @@ public class WorkflowTaskProcessor
         _taskAssignmentRepository = taskAssignmentRepository;
     }
 
-    public async Task<object?> ExecuteTaskAsync(WorkflowTask task, JsonDocument data, WorkflowTaskAssignment assignment)
+    public async Task<object?> ExecuteTaskAsync(WorkflowInstance? instance, WorkflowTask task, JsonDocument data, WorkflowTaskAssignment assignment)
     {
         var instanceTask = new WorkflowInstanceTask
         {
             Id = Guid.NewGuid(),
-            WorkflowInstanceId = assignment.WorkflowInstanceId ?? Guid.Empty,
+            WorkflowInstanceId = instance?.Id,
             WorkflowTaskId = task.Id,
-            StateId = assignment.StateId ?? Guid.Empty,
+            StateId = assignment.StateId,
             TaskName = task.Name,
             TaskType = task.Type,
             Status = Domain.Models.Tasks.TaskStatus.InProgress,
@@ -50,8 +50,8 @@ public class WorkflowTaskProcessor
 
         try
         {
-            var config = !string.IsNullOrEmpty(assignment.Config) 
-                ? JsonSerializer.Deserialize<JsonDocument>(assignment.Config)
+            var config = !string.IsNullOrEmpty(task.Config) 
+                ? JsonSerializer.Deserialize<JsonDocument>(task.Config)
                 : JsonDocument.Parse("{}");
 
             object? result = null;

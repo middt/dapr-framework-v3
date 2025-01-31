@@ -21,19 +21,16 @@ public class WorkflowDbContext : DbContext
     public DbSet<WorkflowCorrelation> WorkflowCorrelations { get; set; } = null!;
     public DbSet<WorkflowInstanceData> WorkflowInstanceData { get; set; } = null!;
     public DbSet<WorkflowInstanceTask> WorkflowInstanceTasks { get; set; } = null!;
+    public DbSet<WorkflowTask> WorkflowTasks { get; set; } = null!;
+    public DbSet<DaprHttpEndpointTask> DaprHttpEndpointTasks { get; set; } = null!;
+    public DbSet<DaprBindingTask> DaprBindingTasks { get; set; } = null!;
+    public DbSet<DaprServiceTask> DaprServiceTasks { get; set; } = null!;
+    public DbSet<HumanTask> HumanTasks { get; set; } = null!;
+    public DbSet<HttpTask> HttpTasks { get; set; } = null!;
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
-
-        // Configure task inheritance
-        modelBuilder.Entity<WorkflowTask>()
-            .HasDiscriminator<string>("TaskType")
-            .HasValue<DaprHttpEndpointTask>("DaprHttpEndpoint")
-            .HasValue<DaprBindingTask>("DaprBinding")
-            .HasValue<DaprServiceTask>("DaprService")
-            .HasValue<HumanTask>("Human")
-            .HasValue<HttpTask>("Http");
 
         // Configure task assignments
         modelBuilder.Entity<WorkflowTaskAssignment>()
@@ -67,14 +64,11 @@ public class WorkflowDbContext : DbContext
         modelBuilder.Entity<WorkflowInstanceTask>()
             .HasIndex(t => t.CompletedAt);
 
-        modelBuilder.Entity<WorkflowInstanceTask>()
-            .HasIndex(t => t.WorkflowInstanceId);
-
         // Configure WorkflowTask inheritance using Table-Per-Type (TPT)
         modelBuilder.Entity<WorkflowTask>(entity =>
         {
             entity.ToTable("WorkflowTasks");  // Base table for common properties
-
+            
             entity.Property(e => e.Name)
                 .HasMaxLength(100)
                 .IsRequired();

@@ -50,9 +50,9 @@ public class WorkflowFunctionService : CRUDDataService<WorkflowFunction, IWorkfl
                 ?? throw new InvalidOperationException($"No task assignment found for function {functionName}");
 
             // Set WorkflowInstanceId to null for standalone function execution
-            taskAssignment.WorkflowInstanceId = null;
+  
 
-            return await _taskProcessor.ExecuteTaskAsync(taskAssignment.Task, data ?? JsonDocument.Parse("{}"), taskAssignment);
+            return await _taskProcessor.ExecuteTaskAsync(null, taskAssignment.Task, data ?? JsonDocument.Parse("{}"), taskAssignment);
         }
         catch (Exception ex)
         {
@@ -75,7 +75,7 @@ public class WorkflowFunctionService : CRUDDataService<WorkflowFunction, IWorkfl
         // Execute tasks in order
         foreach (var taskAssignment in taskAssignments.OrderBy(ta => ta.Order))
         {
-            var result = await _taskProcessor.ExecuteTaskAsync(taskAssignment.Task, data, taskAssignment);
+            var result = await _taskProcessor.ExecuteTaskAsync(null, taskAssignment.Task, data, taskAssignment);
             if (result != null)
             {
                 results.Add(result);

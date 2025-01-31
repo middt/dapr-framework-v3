@@ -4,6 +4,10 @@ using Dapr.Framework.Domain.Common;
 
 namespace Workflow.Domain.Models.Tasks;
 
+/// <summary>
+/// Task;
+/// Tüm bileşenden bağımsızda çalışabilir fakat state, transition, instance ve function seviyesinde ki atama durumunu bellir eder.
+/// </summary>
 public class WorkflowTaskAssignment : BaseEntity
 {
     [Required]
@@ -21,9 +25,6 @@ public class WorkflowTaskAssignment : BaseEntity
     public TaskTrigger Trigger { get; set; }
 
     public int Order { get; set; }
-    
-    [Column(TypeName = "jsonb")]
-    public string Config { get; set; } = "{}";
 
     // Navigation properties
     [ForeignKey(nameof(TaskId))]
